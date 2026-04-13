@@ -1,19 +1,23 @@
 package alpacafashion.ui;
 
-import alpacafashion.data.DatabaseConfig;
+import alpacafashion.model.Producto;
+import alpacafashion.service.InventarioService;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.util.List;
 
 public class InventarioForm extends JFrame {
     private JTable tabla;
     private DefaultTableModel modelo;
+    private JTextField txtBuscar;
+    private JComboBox<String> cbAlmacen;
+
+    // El servicio maneja TODA la lógica y acceso a datos
+    private InventarioService inventarioService = new InventarioService();
 
     public InventarioForm() {
-        setTitle("AlpacaFashion - Gestión de Inventario (SQL)");
+        setTitle("AlpacaFashion - Gestión de Inventario (Arquitectura Pro)");
         setSize(1000, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -22,22 +26,13 @@ public class InventarioForm extends JFrame {
         // --- PANEL SUPERIOR (NAVEGACIÓN) ---
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         topPanel.setBackground(new Color(45, 52, 54));
-
         JButton btnVolver = new JButton("⬅ Volver al Menú");
-
-        // --- FIX VISUAL BOTÓN VOLVER ---
         btnVolver.setOpaque(true);
         btnVolver.setBorderPainted(false);
         btnVolver.setBackground(new Color(99, 110, 114));
         btnVolver.setForeground(Color.WHITE);
         btnVolver.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnVolver.setFocusPainted(false);
-        btnVolver.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        btnVolver.addActionListener(e -> {
-            new MainMenuForm().setVisible(true);
-            this.dispose();
-        });
+        btnVolver.addActionListener(e -> { new MainMenuForm().setVisible(true); this.dispose(); });
         topPanel.add(btnVolver);
         add(topPanel, BorderLayout.NORTH);
 
@@ -45,21 +40,29 @@ public class InventarioForm extends JFrame {
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // 1. Filtros y Búsqueda
+        // 1. Panel de Filtros
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
+        filterPanel.add(new JLabel("🔍 Buscar:"));
+        txtBuscar = new JTextField(15);
+        txtBuscar.addActionListener(e -> aplicarFiltros());
+        filterPanel.add(txtBuscar);
+
         filterPanel.add(new JLabel("Almacén:"));
-        filterPanel.add(new JComboBox<>(new String[]{"Todos", "Principal - Lima", "Cusco", "Arequipa"}));
+        String[] sedes = {"Todos", "Lima - Central", "Cusco - Almacén", "Arequipa - Planta"};
+        cbAlmacen = new JComboBox<>(sedes);
+        cbAlmacen.addActionListener(e -> aplicarFiltros());
+        filterPanel.add(cbAlmacen);
 
-        JCheckBox chkBajoStock = new JCheckBox("Ver solo stock bajo (< 10)");
-        filterPanel.add(chkBajoStock);
-
-        JButton btnRefrescar = new JButton("🔄 Refrescar Datos");
-        btnRefrescar.addActionListener(e -> cargarDatos());
-        filterPanel.add(btnRefrescar);
-
+        JButton btnLimpiar = new JButton("🔄 Limpiar");
+        btnLimpiar.addActionListener(e -> {
+            txtBuscar.setText("");
+            cbAlmacen.setSelectedIndex(0);
+            aplicarFiltros();
+        });
+        filterPanel.add(btnLimpiar);
         mainPanel.add(filterPanel, BorderLayout.NORTH);
 
-        // 2. Tabla de Inventario (SQL)
+        // 2. Tabla de Inventario
         String[] columnas = {"SKU", "Descripción", "Stock Actual", "Almacén", "Precio"};
         modelo = new DefaultTableModel(null, columnas) {
             @Override
@@ -67,7 +70,7 @@ public class InventarioForm extends JFrame {
         };
 
         tabla = new JTable(modelo);
-        tabla.setRowHeight(30); // Un poco más de altura para legibilidad
+        tabla.setRowHeight(30);
         tabla.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         JScrollPane scrollPane = new JScrollPane(tabla);
         mainPanel.add(scrollPane, BorderLayout.CENTER);
@@ -76,22 +79,103 @@ public class InventarioForm extends JFrame {
         JPanel sideActions = new JPanel(new GridLayout(4, 1, 0, 10));
         sideActions.setPreferredSize(new Dimension(180, 0));
 
-        // Botones laterales con estilo consistente
         JButton btnAgregar = crearBotonLateral("Añadir Stock");
         JButton btnSalida = crearBotonLateral("Registrar Salida");
         JButton btnEliminar = crearBotonLateral("Eliminar Item");
 
+        // EVENTO AÑADIR
+        btnAgregar.addActionListener(e -> {
+            String sku = getSelectedSKU();
+            if (sku != null) {
+                String cantStr = JOptionPane.showInputDialog(this, "Cantidad a ingresar para " + sku + ":");
+                if (cantStr != null) {
+                    try {
+                        int cantidad = Integer.parseInt(cantStr);
+                        if (inventarioService.añadirStock(sku, cantidad)) {
+                            aplicarFiltros();
+                            JOptionPane.showMessageDialog(this, "Stock actualizado.");
+                        }
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(this, "Ingrese un número válido.");
+                    }
+                }
+            }
+        });
+
+        // EVENTO SALIDA
+        btnSalida.addActionListener(e -> {
+            String sku = getSelectedSKU();
+            if (sku != null) {
+                String cantStr = JOptionPane.showInputDialog(this, "Cantidad a retirar de " + sku + ":");
+                if (cantStr != null) {
+                    try {
+                        int cantidad = Integer.parseInt(cantStr);
+                        if (inventarioService.registrarSalida(sku, cantidad)) {
+                            aplicarFiltros();
+                            JOptionPane.showMessageDialog(this, "Salida registrada.");
+                        } else {
+                            JOptionPane.showMessageDialog(this, "Error: Stock insuficiente o producto inexistente.");
+                        }
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(this, "Ingrese un número válido.");
+                    }
+                }
+            }
+        });
+
+        // EVENTO ELIMINAR
+        btnEliminar.addActionListener(e -> {
+            String sku = getSelectedSKU();
+            if (sku != null) {
+                int confirm = JOptionPane.showConfirmDialog(this, "¿Eliminar " + sku + "?");
+                if (confirm == JOptionPane.YES_OPTION) {
+                    if (inventarioService.eliminarProducto(sku)) {
+                        aplicarFiltros();
+                        JOptionPane.showMessageDialog(this, "Producto eliminado.");
+                    }
+                }
+            }
+        });
+
         sideActions.add(btnAgregar);
         sideActions.add(btnSalida);
         sideActions.add(btnEliminar);
-
         mainPanel.add(sideActions, BorderLayout.EAST);
-        add(mainPanel, BorderLayout.CENTER);
 
-        cargarDatos();
+        add(mainPanel, BorderLayout.CENTER);
+        aplicarFiltros();
     }
 
-    // Método auxiliar para que los botones laterales también se vean bien
+    /**
+     * MÉTODO CLAVE: Ahora solo se comunica con el Service
+     */
+    public void aplicarFiltros() {
+        modelo.setRowCount(0);
+        String texto = txtBuscar.getText().trim();
+        String sede = (String) cbAlmacen.getSelectedItem();
+
+        // Obtenemos la lista de objetos Producto desde el servicio
+        List<Producto> productos = inventarioService.obtenerProductosFiltrados(texto, sede);
+
+        // Llenamos la tabla recorriendo la lista
+        for (Producto p : productos) {
+            modelo.addRow(new Object[]{
+                    p.sku(),
+                    p.descripcion(),
+                    p.stock(),
+                    p.almacen(),
+                    "S/. " + String.format("%.2f", p.precio())
+            });
+        }
+    }
+
+    private String getSelectedSKU() {
+        int fila = tabla.getSelectedRow();
+        if (fila != -1) return (String) tabla.getValueAt(fila, 0);
+        JOptionPane.showMessageDialog(this, "Seleccione un producto primero.");
+        return null;
+    }
+
     private JButton crearBotonLateral(String texto) {
         JButton btn = new JButton(texto);
         btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -99,29 +183,5 @@ public class InventarioForm extends JFrame {
         return btn;
     }
 
-    public void cargarDatos() {
-        modelo.setRowCount(0);
-        String query = "SELECT * FROM inventario";
-
-        try (Connection conn = DatabaseConfig.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
-
-            while (rs.next()) {
-                Object[] fila = {
-                        rs.getString("sku"),
-                        rs.getString("descripcion"),
-                        rs.getInt("stock"),
-                        rs.getString("almacen"),
-                        "S/. " + String.format("%.2f", rs.getDouble("precio"))
-                };
-                modelo.addRow(fila);
-            }
-
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al conectar con la base de datos:\n" + e.getMessage(),
-                    "Error SQL", JOptionPane.ERROR_MESSAGE);
-            e.printStackTrace();
-        }
-    }
+    public void cargarDatos() { aplicarFiltros(); }
 }
