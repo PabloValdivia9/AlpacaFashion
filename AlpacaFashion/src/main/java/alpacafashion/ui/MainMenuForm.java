@@ -8,14 +8,15 @@ import java.awt.event.MouseEvent;
 
 public class MainMenuForm extends JFrame {
 
-    // Definición de colores para consistencia
-    private final Color primaryColor = new Color(45, 52, 54);    // Gris oscuro (el de tu botón Login)
-    private final Color secondaryColor = new Color(236, 240, 241); // Gris muy claro
-    private final Color accentColor = new Color(99, 110, 114);    // Gris medio para hover
+    // Colores consistentes con el diseño original
+    private final Color primaryColor = new Color(45, 52, 54);    // Gris oscuro
+    private final Color secondaryColor = new Color(236, 240, 241); // Gris claro
+    private final Color accentColor = new Color(99, 110, 114);    // Gris medio (Hover)
+    private final Color logoutColor = new Color(192, 57, 43);    // Rojo para salir
 
     public MainMenuForm() {
         setTitle("AlpacaFashion - Sistema de Gestión");
-        setSize(1000, 700); // Un poco más grande para el estilo Dashboard
+        setSize(1000, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
@@ -27,15 +28,15 @@ public class MainMenuForm extends JFrame {
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBorder(new EmptyBorder(20, 10, 20, 10));
 
-        // Título o Logo en el sidebar
+        // Título de la Marca
         JLabel lblBrand = new JLabel("ALPACA FASHION");
         lblBrand.setForeground(Color.WHITE);
         lblBrand.setFont(new Font("Segoe UI", Font.BOLD, 18));
         lblBrand.setAlignmentX(Component.CENTER_ALIGNMENT);
         sidebar.add(lblBrand);
-        sidebar.add(Box.createRigidArea(new Dimension(0, 40))); // Espaciador
+        sidebar.add(Box.createRigidArea(new Dimension(0, 40)));
 
-        // Botones del Sidebar
+        // Botones del Menú Lateral
         sidebar.add(crearBotonMenu(" Catálogo", "📦", e -> abrirModulo(new CatalogoForm())));
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
         sidebar.add(crearBotonMenu(" Cotización", "💰", e -> abrirModulo(new CotizacionForm())));
@@ -44,14 +45,22 @@ public class MainMenuForm extends JFrame {
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
         sidebar.add(crearBotonMenu(" Logística", "🚚", e -> abrirModulo(new LogisticaForm())));
 
-        sidebar.add(Box.createVerticalGlue()); // Empuja el botón salir hacia abajo
+        sidebar.add(Box.createVerticalGlue()); // Espacio flexible
 
-        // Botón Salir
+        // --- BOTÓN CERRAR SESIÓN (CORREGIDO) ---
         JButton btnLogout = new JButton("Cerrar Sesión");
         btnLogout.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btnLogout.setBackground(new Color(192, 57, 43)); // Rojo suave
+        btnLogout.setMaximumSize(new Dimension(200, 40));
+
+        // Ajustes para ignorar el estilo nativo de Windows y recuperar el color
+        btnLogout.setOpaque(true);
+        btnLogout.setBorderPainted(false);
+        btnLogout.setBackground(logoutColor);
         btnLogout.setForeground(Color.WHITE);
+        btnLogout.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnLogout.setFocusPainted(false);
+        btnLogout.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
         btnLogout.addActionListener(e -> {
             new LoginForm().setVisible(true);
             this.dispose();
@@ -60,22 +69,21 @@ public class MainMenuForm extends JFrame {
 
         add(sidebar, BorderLayout.WEST);
 
-        // --- PANEL PRINCIPAL (Área de Bienvenida) ---
+        // --- PANEL DE BIENVENIDA ---
         JPanel mainContent = new JPanel(new GridBagLayout());
         mainContent.setBackground(Color.WHITE);
 
         JLabel lblWelcome = new JLabel("<html><div style='text-align: center;'>"
-                + "<h1>Bienvenido al Sistema</h1>"
-                + "<p style='font-size: 14pt;'>Seleccione un módulo en la barra lateral para comenzar.</p>"
+                + "<h1>Panel de Control AlpacaFashion</h1>"
+                + "<p style='font-size: 14pt; color: #636e72;'>Seleccione una opción en el menú lateral para gestionar el negocio.</p>"
                 + "</div></html>");
-        lblWelcome.setForeground(primaryColor);
         mainContent.add(lblWelcome);
 
         add(mainContent, BorderLayout.CENTER);
     }
 
     /**
-     * Crea un botón estilizado para el menú lateral con efecto Hover
+     * Crea botones para el menú con el estilo corregido
      */
     private JButton crearBotonMenu(String texto, String icono, java.awt.event.ActionListener accion) {
         JButton btn = new JButton(icono + texto);
@@ -83,16 +91,17 @@ public class MainMenuForm extends JFrame {
         btn.setPreferredSize(new Dimension(230, 50));
         btn.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Estilo visual
+        // Estilo visual forzado
+        btn.setOpaque(true);
+        btn.setBorderPainted(false);
         btn.setFont(new Font("Segoe UI", Font.PLAIN, 16));
         btn.setBackground(primaryColor);
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
         btn.setHorizontalAlignment(SwingConstants.LEFT);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Efecto Hover (cambio de color al pasar el mouse)
+        // Efecto Hover
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
